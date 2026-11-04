@@ -1,0 +1,54 @@
+package main
+
+import (
+	"log"
+	"net/http"
+)
+
+func newMux() *http.ServeMux {
+	return newMuxWithConfig(&apiConfig{})
+}
+
+func newMuxWithConfig(apiCfg *apiConfig) *http.ServeMux {
+	mux := http.NewServeMux()
+
+	mux.Handle(
+		"/app/",
+		apiCfg.middlewareMetricsInc(
+			http.StripPrefix("/app", http.FileServer(http.Dir("."))),
+		),
+	)
+	log.Println("The endpoint Altynbek is ready to user")
+
+	mux.Handle(
+		"GET /app/assets/",
+		apiCfg.middlewareMetricsInc(
+			http.StripPrefix("/app/assets/", http.FileServer(http.Dir("assets"))),
+		),
+	)
+	log.Println("The endpoint assets is ready to user")
+
+	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(200)
+		w.Write([]byte("OK"))
+	})
+	log.Println("The endpoint healthz is ready to user")
+
+	mux.HandleFunc("/about-me", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "test/test.html")
+	})
+	log.Println("The test url is ready to test")
+
+	mux.HandleFunc("GET /api/metrics", apiCfg.handler)
+	mux.HandleFunc("POST /admin/reset", apiCfg.resetHandler)
+	log.Println("/metrics and /reset are ready ")
+
+	mux.HandleFunc("POST /api/users", apiCfg.dbHandler)
+	log.Println("The db handler has been created successfully")
+
+	mux.HandleFunc("POST /api/chirps", apiCfg.createChirpsHandler)
+	log.Println("The /api/chirps is ready to use")
+
+	return mux
+}
