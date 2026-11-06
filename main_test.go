@@ -26,6 +26,15 @@ func TestCreateChirpRejectsInvalidBody(t *testing.T) {
 	}
 }
 
+func TestGetChirpRejectsInvalidID(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/chirps/not-a-uuid", nil)
+	w := httptest.NewRecorder()
+	newMux().ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status %d, want 400; body %q", w.Code, w.Body.String())
+	}
+}
+
 func TestAPIRoutes(t *testing.T) {
 	mux := newMux()
 	request := func(method, path string) *httptest.ResponseRecorder {

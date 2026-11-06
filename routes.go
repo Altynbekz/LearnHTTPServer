@@ -50,5 +50,14 @@ func newMuxWithConfig(apiCfg *apiConfig) *http.ServeMux {
 	mux.HandleFunc("POST /api/chirps", apiCfg.createChirpsHandler)
 	log.Println("The /api/chirps is ready to use")
 
+	mux.HandleFunc("GET /api/chirps", apiCfg.getAllChirpsHandler)
+	log.Println("get all chips has been created")
+
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.getChirp)
+	log.Println("Getting chirp by id has been created")
+
+	mux.HandleFunc("POST /api/login", apiCfg.UserLoginHandler)
+	log.Println("The login endpoint is ready")
+
 	return mux
 }

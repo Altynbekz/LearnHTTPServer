@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -87,4 +89,58 @@ func cleanBody(word string) string {
 		newWord = append(newWord, str)
 	}
 	return strings.Join(newWord, " ")
+}
+
+// func to return all the chirps
+func (cfg *apiConfig) getAllChirpsHandler(w http.ResponseWriter, r *http.Request) {
+	items, err := cfg.db.GetAllChirps(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "sorry internal erro occured try again later")
+		return
+	}
+	var AllChirps []chirpyResponse
+
+	for _, chirp := range items {
+		oneChirp := chirpyResponse{
+			ID:        chirp.ID,
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			Body:      chirp.Body,
+			UserID:    chirp.UserID,
+		}
+		AllChirps = append(AllChirps, oneChirp)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	if err := json.NewEncoder(w).Encode(AllChirps); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Sorry something went wrong try again later")
+		return
+	}
+
+}
+
+func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("chirpID")
+	chirpID, err := uuid.Parse(id)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid chirp ID")
+		return
+	}
+	chirp, err := cfg.db.GetChirps(r.Context(), chirpID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(w, http.StatusNotFound, "Chirp not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Could not get chirp")
+		return
+	}
+
+	response := struct {
+		Body string `json:"body"`
+	}{}
+
+	response.Body = chirp.Body
+
+	respondWithJSON(w, http.StatusOK, response)
 }
