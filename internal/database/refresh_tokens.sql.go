@@ -33,6 +33,35 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 	return err
 }
 
+const existsByRefreshToken = `-- name: ExistsByRefreshToken :one
+select exists(select 1 from refresh_tokens where token = $1)
+`
+
+func (q *Queries) ExistsByRefreshToken(ctx context.Context, token string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, existsByRefreshToken, token)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const findRefreshToken = `-- name: FindRefreshToken :one
+select token, created_at, updated_at, user_id, expires_at, revoked_at from refresh_tokens where token = $1 limit 1
+`
+
+func (q *Queries) FindRefreshToken(ctx context.Context, token string) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, findRefreshToken, token)
+	var i RefreshToken
+	err := row.Scan(
+		&i.Token,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.UserID,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+	)
+	return i, err
+}
+
 const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
 UPDATE refresh_tokens
 SET revoked_at = NOW(),

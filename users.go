@@ -148,3 +148,59 @@ func accessTokenDuration(seconds int) time.Duration {
 	}
 	return time.Duration(seconds) * time.Second
 }
+
+func (cfg *apiConfig) UserRefreshHandler(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "couldn't identify the refresh token")
+		return
+	}
+
+	isMatch, err := cfg.db.FindRefreshToken(r.Context(), token)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(w, 401, "invalid refresh token")
+			return
+		}
+		respondWithError(w, http.StatusUnauthorized, "couldn't identify the refresh token")
+		return
+	}
+
+	if isMatch.RevokedAt.Valid || time.Now().After(isMatch.ExpiresAt) {
+		respondWithError(w, http.StatusUnauthorized, "Invalid or expired refresh token")
+		return
+	}
+	newJwt, err := auth.MakeJWT(isMatch.UserID, cfg.secretKey, accessTokenDuration(3600))
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "couldn't create the jwt token try again later")
+		return
+	}
+
+	respondWithJSON(w, 200, map[string]any{"token": newJwt})
+}
+
+func (cfg *apiConfig) revokeHandler(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "Couldn't identify the token")
+		return
+	}
+	is_match, err := cfg.db.ExistsByRefreshToken(r.Context(), token)
+	if err != nil {
+		respondWithError(w, 401, "couldn't identify the token")
+		return
+	}
+
+	if !is_match {
+		respondWithError(w, 401, "Invalid token")
+		return
+	}
+
+	if err := cfg.db.RevokeRefreshToken(r.Context(), token); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "couldn't revoke try again later")
+		return
+	}
+
+	respondWithoutBody(w, 204)
+
+}

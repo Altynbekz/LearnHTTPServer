@@ -59,5 +59,10 @@ func newMuxWithConfig(apiCfg *apiConfig) *http.ServeMux {
 	mux.HandleFunc("POST /api/login", apiCfg.UserLoginHandler)
 	log.Println("The login endpoint is ready")
 
+	mux.HandleFunc("POST /api/refresh", apiCfg.UserRefreshHandler)
+	log.Println("The refresh endpoint is ready")
+
+	mux.HandleFunc("POST /api/revoke", apiCfg.revokeHandler)
+
 	return mux
 }
