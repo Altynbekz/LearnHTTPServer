@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"httpServerWithGo/internal/auth"
 	"httpServerWithGo/internal/database"
 	"net/http"
@@ -11,11 +13,8 @@ import (
 )
 
 type UserRequest struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
-	Password  string    `json:"password"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type UserLogin struct {
@@ -24,10 +23,12 @@ type UserLogin struct {
 }
 
 type userResponse struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
+	ID           uuid.UUID `json:"id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Email        string    `json:"email"`
+	Token        string    `json:"token,omitempty"`
+	RefreshToken string    `json:"refresh_token"`
 }
 
 func (cfg *apiConfig) dbHandler(w http.ResponseWriter, r *http.Request) {
@@ -39,14 +40,19 @@ func (cfg *apiConfig) dbHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if request.Email == "" {
+		respondWithError(w, http.StatusBadRequest, "Email is required")
+		return
+	}
+
 	if request.Password == "" {
-		respondWithError(w, 401, "The password is invalid")
+		respondWithError(w, http.StatusBadRequest, "The password is invalid")
 		return
 	}
 
 	request.Password, err = auth.HashPassword(request.Password)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "sorry could save the password")
+		respondWithError(w, http.StatusInternalServerError, "Could not save the password")
 		return
 	}
 
@@ -57,7 +63,7 @@ func (cfg *apiConfig) dbHandler(w http.ResponseWriter, r *http.Request) {
 	create, err := cfg.db.CreateUser(r.Context(), created)
 
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Could not create user")
+		respondWithError(w, http.StatusInternalServerError, "Could not create user")
 		return
 	}
 
@@ -80,19 +86,23 @@ func (cfg *apiConfig) UserLoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&login)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "internal error sorry")
+		respondWithError(w, http.StatusBadRequest, "Invalid JSON request")
 		return
 	}
 
 	getUser, err := cfg.db.FindUserByEmail(r.Context(), login.Email)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "user not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(w, http.StatusUnauthorized, "Incorrect email or password")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Could not look up user")
 		return
 	}
 
 	entered, err := auth.CheckPasswordHash(login.Password, getUser.HashedPassword)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "soory internal error occured")
+		respondWithError(w, http.StatusBadRequest, "soory internal error occured")
 		return
 	}
 
@@ -100,12 +110,41 @@ func (cfg *apiConfig) UserLoginHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 401, "Incorrect email or password")
 		return
 	}
+
+	token, err := auth.MakeJWT(getUser.ID, cfg.secretKey, accessTokenDuration(3600))
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Could create the token sorry")
+		return
+	}
+
+	refreshToken := auth.MakeRefreshToken()
+	saveToken := database.CreateRefreshTokenParams{
+		Token:     refreshToken,
+		UserID:    getUser.ID,
+		ExpiresAt: time.Now().AddDate(0, 0, 60),
+	}
+
+	err = cfg.db.CreateRefreshToken(r.Context(), saveToken)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Couldn`t save rf try again later")
+		return
+	}
+
 	response := userResponse{
-		ID:        getUser.ID,
-		CreatedAt: getUser.CreatedAt,
-		UpdatedAt: getUser.UpdatedAt,
-		Email:     getUser.Email,
+		ID:           getUser.ID,
+		CreatedAt:    getUser.CreatedAt,
+		UpdatedAt:    getUser.UpdatedAt,
+		Email:        getUser.Email,
+		Token:        token,
+		RefreshToken: refreshToken,
 	}
 
 	respondWithJSON(w, 200, response)
+}
+
+func accessTokenDuration(seconds int) time.Duration {
+	if seconds <= 0 || seconds > 3600 {
+		return time.Hour
+	}
+	return time.Duration(seconds) * time.Second
 }

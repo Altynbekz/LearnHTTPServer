@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"httpServerWithGo/internal/auth"
 	"httpServerWithGo/internal/database"
 
 	"github.com/google/uuid"
 )
 
 type chirpRequest struct {
-	Body   string    `json:"body"`
-	UserID uuid.UUID `json:"user_id"`
+	Body string `json:"body"`
 }
 
 type chirpyResponse struct {
@@ -37,6 +37,17 @@ func (cfg *apiConfig) createChirpsHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// The token identifies the author; the request body cannot choose a user.
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Missing or invalid Bearer token")
+		return
+	}
+	userID, err := auth.ValidateJWT(token, cfg.secretKey)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid or expired token")
+		return
+	}
 	// Validate and clean the body before writing anything to the database.
 	body, err := validateChirp(request.Body)
 	if err != nil {
@@ -46,7 +57,7 @@ func (cfg *apiConfig) createChirpsHandler(w http.ResponseWriter, r *http.Request
 
 	params := database.CreateChirpParams{
 		Body:   body,
-		UserID: request.UserID,
+		UserID: userID,
 	}
 
 	create, err := cfg.db.CreateChirp(r.Context(), params)

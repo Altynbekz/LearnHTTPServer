@@ -1,28 +1,77 @@
 package main
 
 import (
+	"httpServerWithGo/internal/auth"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
 )
 
-func TestCreateChirpRejectsInvalidBody(t *testing.T) {
+func TestAccessTokenDuration(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		body string
+		seconds int
+		want    time.Duration
 	}{
-		{name: "malformed JSON", body: `{`},
-		{name: "over 140 characters", body: `{"body":"` + strings.Repeat("a", 141) + `"}`},
+		{seconds: 0, want: time.Hour},
+		{seconds: -1, want: time.Hour},
+		{seconds: 30, want: 30 * time.Second},
+		{seconds: 7200, want: time.Hour},
+	} {
+		if got := accessTokenDuration(tc.seconds); got != tc.want {
+			t.Errorf("accessTokenDuration(%d) = %s, want %s", tc.seconds, got, tc.want)
+		}
+	}
+}
+
+func TestCreateChirpRejectsInvalidBody(t *testing.T) {
+	const secret = "test-secret"
+	token, err := auth.MakeJWT(uuid.New(), secret, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := newMuxWithConfig(&apiConfig{secretKey: secret})
+	for _, tc := range []struct {
+		name        string
+		body        string
+		bearerToken bool
+		wantError   string
+	}{
+		{name: "malformed JSON", body: `{`, wantError: "Invalid JSON request"},
+		{name: "over 140 characters", body: `{"body":"` + strings.Repeat("a", 141) + `"}`, bearerToken: true, wantError: "chirp is too long"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/api/chirps", strings.NewReader(tc.body))
+			if tc.bearerToken {
+				req.Header.Set("Authorization", "Bearer "+token)
+			}
 			w := httptest.NewRecorder()
-			newMux().ServeHTTP(w, req)
+			mux.ServeHTTP(w, req)
 			if w.Code != http.StatusBadRequest {
 				t.Fatalf("status %d, want 400; body %q", w.Code, w.Body.String())
 			}
+			if !strings.Contains(w.Body.String(), tc.wantError) {
+				t.Fatalf("body %q does not contain %q", w.Body.String(), tc.wantError)
+			}
 		})
+	}
+}
+
+func TestCreateChirpRejectsInvalidToken(t *testing.T) {
+	mux := newMuxWithConfig(&apiConfig{secretKey: "test-secret"})
+	for _, authorization := range []string{"", "Bearer not-a-jwt"} {
+		req := httptest.NewRequest(http.MethodPost, "/api/chirps", strings.NewReader(`{"body":"hello"}`))
+		if authorization != "" {
+			req.Header.Set("Authorization", authorization)
+		}
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("Authorization %q: status %d, want 401", authorization, w.Code)
+		}
 	}
 }
 

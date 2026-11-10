@@ -19,8 +19,12 @@ func main() {
 
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
+	secretKey := os.Getenv("SECRET_KEY")
 	if dbURL == "" {
 		log.Fatal("DB_URL is not set")
+	}
+	if secretKey == "" {
+		log.Fatal("SECRET_KEY is not set")
 	}
 
 	db, err := sql.Open("postgres", dbURL)
@@ -30,7 +34,7 @@ func main() {
 	defer db.Close()
 
 	dbQueries := database.New(db)
-	apiCfg := &apiConfig{db: dbQueries, platform: platform}
+	apiCfg := &apiConfig{db: dbQueries, platform: platform, secretKey: secretKey}
 
 	server := http.Server{
 		Addr:    ":8080",
