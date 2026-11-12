@@ -1,0 +1,2 @@
+/** @type {import('tailwindcss').Config} */
+export default { content: ['./index.html', './src/**/*.{ts,tsx}'], theme: { extend: { fontFamily: { serif: ['DM Serif Display', 'Georgia', 'serif'], mono: ['DM Mono', 'monospace'] }, colors: { paper: '#F4F0E8', charcoal: '#28251F', muted: '#746F65', border: '#D8D0C1', rust: '#9A4F36', sage: '#5E7650' } } }, plugins: [] }

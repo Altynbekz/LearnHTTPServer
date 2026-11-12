@@ -1,0 +1,14 @@
+import { useEffect, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { ChirpComposer } from '../components/ChirpComposer'
+import { ChirpItem } from '../components/ChirpItem'
+import { EmptyState } from '../components/EmptyState'
+import { SectionLabel } from '../components/SectionLabel'
+import { useAuth } from '../context/AuthContext'
+import { api, ApiError, type Chirp } from '../lib/api'
+export function FeedPage() {
+  const { isLoggedIn } = useAuth(); const location = useLocation(); const [chirps, setChirps] = useState<Chirp[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState('')
+  useEffect(() => { api.getChirps().then((items) => setChirps(items.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)))).catch((err) => setError(err instanceof ApiError ? err.message : 'The feed could not be loaded.')).finally(() => setLoading(false)) }, [])
+  useEffect(() => { const created = (location.state as { created?: Chirp } | null)?.created; if (created) { setChirps((current) => [created, ...current.filter((item) => item.id !== created.id)]); window.history.replaceState({}, '', '/') } }, [location])
+  return <main className="mx-auto max-w-[760px] px-5 py-16 sm:py-24"><section><SectionLabel>ソーシャルフィード · Social feed</SectionLabel><h1 className="mt-5 max-w-xl font-serif text-5xl leading-[1.05] tracking-tight text-charcoal sm:text-6xl">Short thoughts,<br />simply shared.</h1><p className="mt-6 max-w-lg text-base leading-7 text-muted">Chirpy is a small social API built with Go, made for sharing the ideas that do not need a stage.</p></section>{isLoggedIn ? <section className="mt-16 border-y border-border py-7"><ChirpComposer /></section> : <section className="mt-16 flex flex-wrap items-center justify-between gap-5 border-y border-border py-6"><p className="text-sm text-muted">Join the quiet conversation.</p><div className="flex gap-5 font-mono text-[11px] uppercase tracking-[0.08em]"><Link className="text-rust underline-offset-4 hover:underline" to="/login">Login</Link><Link className="text-rust underline-offset-4 hover:underline" to="/register">Create account</Link></div></section>}<section className="mt-16"><div className="mb-5 flex items-center justify-between"><SectionLabel>Recent chirps</SectionLabel><span className="font-mono text-[11px] text-muted">{chirps.length} total</span></div>{loading && <div className="space-y-5" aria-label="Loading feed"><div className="h-28 animate-pulse border-y border-border bg-border/20" /><div className="h-24 animate-pulse border-b border-border bg-border/20" /></div>}{error && <p role="alert" className="border-y border-rust/40 py-5 text-sm text-rust">{error}</p>}{!loading && !error && chirps.length === 0 && <EmptyState />}{!loading && !error && chirps.map((chirp) => <ChirpItem key={chirp.id} chirp={chirp} onDeleted={(id) => setChirps((current) => current.filter((item) => item.id !== id))} />)}</section></main>
+}

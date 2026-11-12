@@ -80,7 +80,7 @@ Do not commit real credentials or secret keys.
 ### Run the server
 
 ```bash
-go run .
+go run ./backend
 ```
 
 The server starts on:
@@ -107,18 +107,36 @@ sqlc generate
 
 ```text
 .
-├── main.go                 # Application startup and configuration
-├── routes.go               # HTTP route registration
-├── users.go                # Registration, login, refresh, and revoke handlers
-├── chirps.go               # Chirp handlers and validation
-├── admin.go                # Metrics and development reset handlers
+├── backend/                # Go HTTP server and its tests
+│   ├── main.go             # Application startup and configuration
+│   ├── routes.go           # HTTP route registration
+│   ├── users.go            # Registration, login, refresh, and revoke handlers
+│   ├── chirps.go           # Chirp handlers and validation
+│   └── main_test.go        # HTTP handler tests
 ├── internal/auth/           # Password, JWT, and refresh-token helpers
 ├── internal/database/       # sqlc-generated database code
 ├── sql/schema/              # PostgreSQL schema migrations
 ├── sql/queries/             # SQL queries used by sqlc
-└── main_test.go             # HTTP handler tests
+└── src/                    # React frontend
 ```
 
 ## Learning goal
 
 This project is being developed incrementally to build a practical understanding of backend development in Go: HTTP routing, authentication, persistence, validation, error handling, and testing.
+
+## Chirpy frontend
+
+The repository includes a React + Vite + TypeScript frontend. From the project root, install dependencies and start it with:
+
+```bash
+npm install
+npm run dev
+```
+
+The API base defaults to `http://localhost:8080`. To use another API host, set `VITE_API_URL` in a `.env` file (see `.env.example`):
+
+```env
+VITE_API_URL=http://localhost:8080
+```
+
+Run `go run ./backend` in another terminal while developing. Because the frontend uses the configured absolute API URL, the Go server must allow the Vite origin (`http://localhost:5173`) with CORS headers during local development. Alternatively, set a same-origin API URL through a reverse proxy. The frontend itself does not change backend CORS behavior.

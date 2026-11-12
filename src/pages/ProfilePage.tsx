@@ -1,0 +1,11 @@
+import { CheckCircle2 } from 'lucide-react'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { SectionLabel } from '../components/SectionLabel'
+import { useAuth } from '../context/AuthContext'
+import { ApiError } from '../lib/api'
+import { Error, Field } from './LoginPage'
+export function ProfilePage() { const { user, updateUser, logout } = useAuth(); const navigate = useNavigate(); const [email, setEmail] = useState(user?.email || ''); const [password, setPassword] = useState(''); const [message, setMessage] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false)
+  async function submit(event: React.FormEvent) { event.preventDefault(); setLoading(true); setError(''); setMessage(''); try { await updateUser(email, password); setPassword(''); setMessage('Profile updated.') } catch (err) { setError(err instanceof ApiError ? err.message : 'Your profile could not be updated.') } finally { setLoading(false) } }
+  async function signOut() { await logout(); navigate('/') }
+  return <main className="mx-auto max-w-[760px] px-5 py-16 sm:py-24"><SectionLabel>設定 · Settings</SectionLabel><h1 className="mt-5 font-serif text-5xl text-charcoal">Your profile.</h1><div className="mt-10 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-sage"><CheckCircle2 aria-hidden="true" className="h-4 w-4" />Authenticated</div><p className="mt-3 text-sm text-muted">{user?.email}</p><form onSubmit={submit} className="mt-14 max-w-[500px] space-y-7"><Field label="Email" type="email" value={email} onChange={setEmail} /><Field label="New password" type="password" value={password} onChange={setPassword} />{error && <Error text={error} />}{message && <p className="text-sm text-sage">{message}</p>}<button disabled={loading || !password} className="font-mono text-[11px] uppercase tracking-[0.08em] text-rust underline-offset-4 hover:underline disabled:opacity-40">{loading ? 'Saving...' : 'Save changes →'}</button></form><div className="mt-16 border-t border-border pt-6"><button onClick={signOut} className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted hover:text-rust">Logout</button></div></main> }

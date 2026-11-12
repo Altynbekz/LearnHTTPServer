@@ -3,7 +3,35 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 )
+
+func projectFile(path string) string {
+	for _, candidate := range []string{path, filepath.Join("..", path)} {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return path
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if origin == "http://localhost:5173" || origin == "http://localhost:5174" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 func newMux() *http.ServeMux {
 	return newMuxWithConfig(&apiConfig{})
@@ -36,7 +64,7 @@ func newMuxWithConfig(apiCfg *apiConfig) *http.ServeMux {
 	log.Println("The endpoint healthz is ready to user")
 
 	mux.HandleFunc("/about-me", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "test/test.html")
+		http.ServeFile(w, r, projectFile("test/test.html"))
 	})
 	log.Println("The test url is ready to test")
 

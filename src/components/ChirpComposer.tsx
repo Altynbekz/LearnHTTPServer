@@ -1,0 +1,9 @@
+import { ArrowRight } from 'lucide-react'
+import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api, ApiError, type Chirp } from '../lib/api'
+export function ChirpComposer({ onCreated }: { onCreated?: (chirp: Chirp) => void }) {
+  const [body, setBody] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false); const navigate = useNavigate()
+  async function submit(event: FormEvent) { event.preventDefault(); if (!body.trim() || body.length > 140) return; setLoading(true); setError(''); try { const chirp = await api.createChirp(body); onCreated?.(chirp); setBody(''); navigate('/', { state: { created: chirp } }) } catch (err) { setError(err instanceof ApiError ? err.message : 'Your chirp could not be published.') } finally { setLoading(false) } }
+  return <form onSubmit={submit}><label htmlFor="chirp-body" className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted">Write a chirp</label><textarea id="chirp-body" required maxLength={140} rows={3} value={body} onChange={(event) => setBody(event.target.value)} placeholder="A small thought..." className="mt-3 block w-full resize-none border-b border-border bg-transparent py-3 text-lg leading-7 text-charcoal outline-none placeholder:text-muted/70 focus:border-rust" /><div className="mt-4 flex items-center justify-between gap-4"><span className="font-mono text-[11px] text-muted" aria-live="polite">{body.length} / 140</span><button disabled={loading || !body.trim()} className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-rust hover:underline disabled:cursor-not-allowed disabled:opacity-40">{loading ? 'Publishing...' : 'Publish chirp'}<ArrowRight aria-hidden="true" className="h-3.5 w-3.5" /></button></div>{error && <p role="alert" className="mt-4 text-sm text-rust">{error}</p>}</form>
+}

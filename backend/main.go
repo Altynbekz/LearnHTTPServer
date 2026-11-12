@@ -38,7 +38,7 @@ func main() {
 
 	server := http.Server{
 		Addr:    ":8080",
-		Handler: newMuxWithConfig(apiCfg),
+		Handler: corsMiddleware(newMuxWithConfig(apiCfg)),
 	}
 	log.Println("Server is ready to use")
 	log.Fatal(server.ListenAndServe())

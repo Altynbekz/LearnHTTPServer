@@ -1,0 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Serif+Display&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+:root { color: #28251f; background: #f4f0e8; font-family: Georgia, serif; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { min-width: 320px; min-height: 100vh; margin: 0; background: #f4f0e8; }
+button, input, textarea { font: inherit; }
+button { cursor: pointer; }
+::selection { color: #f4f0e8; background: #9a4f36; }

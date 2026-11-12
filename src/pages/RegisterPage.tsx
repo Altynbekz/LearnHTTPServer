@@ -1,0 +1,7 @@
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { AuthLayout, Error, Field } from './LoginPage'
+import { ApiError, api } from '../lib/api'
+export function RegisterPage() { const navigate = useNavigate(); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false)
+  async function submit(event: React.FormEvent) { event.preventDefault(); setLoading(true); setError(''); try { await api.register(email, password); navigate('/login', { state: { registered: true } }) } catch (err) { setError(err instanceof ApiError ? err.message : 'Your account could not be created.') } finally { setLoading(false) } }
+  return <AuthLayout eyebrow="A place to begin" title="Make some room for thought."><form onSubmit={submit} className="space-y-7"><Field label="Email" type="email" value={email} onChange={setEmail} /><Field label="Password" type="password" value={password} onChange={setPassword} />{error && <Error text={error} />}<button disabled={loading} className="font-mono text-[11px] uppercase tracking-[0.08em] text-rust underline-offset-4 hover:underline disabled:opacity-40">{loading ? 'Creating account...' : 'Create account →'}</button><p className="pt-5 text-sm text-muted">Already registered? <Link to="/login" className="text-rust hover:underline">Login</Link></p></form></AuthLayout> }
