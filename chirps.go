@@ -155,3 +155,63 @@ func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, response)
 }
+
+func (cfg *apiConfig) DeleteChirpHandler(w http.ResponseWriter, r *http.Request) {
+
+	id := r.PathValue("chirpID")
+	database := cfg.db
+	chirpId, err := uuid.Parse(id)
+
+	if err != nil {
+		respondWithError(w, 401, "Couldn't find the user with that id")
+		return
+	}
+
+	chirp, err := database.GetChirps(r.Context(), chirpId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(w, 400, "Chirp not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Error occured couldn't find the chirp")
+		return
+	}
+
+	//check if the user is eglible to delete that chirp
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "Couldn't get the token")
+		return
+	}
+
+	validate, err := auth.ValidateJWT(token, cfg.secretKey)
+	if err != nil {
+		respondWithError(w, 400, "Couldn't validate the token")
+		return
+	}
+
+	if validate != chirp.UserID {
+		respondWithError(w, 403, "Sorry you dont have access")
+		return
+	}
+
+	//fund if the user with that id exists
+	exists, err := database.ExistsByChirpId(r.Context(), chirpId)
+	if err != nil {
+		respondWithError(w, 401, "Couldn't find the user with that id in the database")
+		return
+	}
+
+	if !exists {
+		respondWithError(w, 404, "The chirp does not exist")
+		return
+	}
+
+	if err := database.DeleteChirp(r.Context(), chirpId); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Sorry error occured couldn't delete the chirp")
+		return
+	}
+
+	respondWithoutBody(w, 204)
+
+}

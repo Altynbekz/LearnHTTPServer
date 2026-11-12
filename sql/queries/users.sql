@@ -17,3 +17,6 @@ select * from users where email = $1 limit 1;
 
 -- name: DeleteAll :exec
 delete from users;
+
+-- name: UpdateUser :exec
+update users set email = $1, hashed_password = $2 where id = $3;

@@ -204,3 +204,42 @@ func (cfg *apiConfig) revokeHandler(w http.ResponseWriter, r *http.Request) {
 	respondWithoutBody(w, 204)
 
 }
+
+func (cfg *apiConfig) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "Couldn't get the token")
+		return
+	}
+	uid, err := auth.ValidateJWT(token, cfg.secretKey)
+	if err != nil {
+		respondWithError(w, 401, "Couldn't verify the token ")
+		return
+	}
+
+	var updatedUser UserRequest
+	if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't decode the user")
+		return
+	}
+
+	hashed_password, err := auth.HashPassword(updatedUser.Password)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't hash the password")
+		return
+	}
+
+	updated := database.UpdateUserParams{
+		Email:          updatedUser.Email,
+		HashedPassword: hashed_password,
+		ID:             uid,
+	}
+
+	if err := cfg.db.UpdateUser(r.Context(), updated); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't update the user")
+		return
+	}
+
+	respondWithJSON(w, 200, map[string]any{"email": updatedUser.Email})
+
+}

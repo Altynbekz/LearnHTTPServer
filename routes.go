@@ -63,6 +63,13 @@ func newMuxWithConfig(apiCfg *apiConfig) *http.ServeMux {
 	log.Println("The refresh endpoint is ready")
 
 	mux.HandleFunc("POST /api/revoke", apiCfg.revokeHandler)
+	log.Println("Revoke endpoint is ready to use")
+
+	mux.HandleFunc("PUT /api/users", apiCfg.UpdateUserHandler)
+	log.Println("the updating endpoint is ready")
+
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.DeleteChirpHandler)
+	log.Println("The delete endpoint has been created")
 
 	return mux
 }
