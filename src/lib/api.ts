@@ -1,4 +1,6 @@
-export type User = { id: string; email: string; created_at?: string; updated_at?: string }
+export type User = { id: string; email: string; is_chirpy_red?: boolean; created_at?: string; updated_at?: string }
+export type SortOrder = 'asc' | 'desc'
+export type ChirpQuery = { authorId?: string; sort?: SortOrder }
 export type Chirp = { id: string; body: string; user_id: string; created_at: string; updated_at: string }
 export type AuthResponse = User & { token: string; refresh_token: string }
 
@@ -7,7 +9,8 @@ const keys = { token: 'chirpy_token', refresh: 'chirpy_refresh_token', user: 'ch
 export const authStorage = {
   getToken: () => localStorage.getItem(keys.token), getRefreshToken: () => localStorage.getItem(keys.refresh),
   getUser: (): User | null => JSON.parse(localStorage.getItem(keys.user) || 'null'),
-  save: (auth: AuthResponse) => { localStorage.setItem(keys.token, auth.token); localStorage.setItem(keys.refresh, auth.refresh_token); localStorage.setItem(keys.user, JSON.stringify({ id: auth.id, email: auth.email, created_at: auth.created_at, updated_at: auth.updated_at })) },
+  save: (auth: AuthResponse) => { localStorage.setItem(keys.token, auth.token); localStorage.setItem(keys.refresh, auth.refresh_token); localStorage.setItem(keys.user, JSON.stringify({ id: auth.id, email: auth.email, is_chirpy_red: auth.is_chirpy_red ?? false, created_at: auth.created_at, updated_at: auth.updated_at })) },
+  saveUser: (user: User) => localStorage.setItem(keys.user, JSON.stringify(user)),
   saveToken: (token: string) => localStorage.setItem(keys.token, token),
   clear: () => Object.values(keys).forEach((key) => localStorage.removeItem(key)),
 }
@@ -32,7 +35,14 @@ export async function request<T>(path: string, options: RequestInit = {}, protec
   return await parseResponse(response) as T
 }
 export const api = {
-  getChirps: () => request<Chirp[]>('/api/chirps'),
+  getChirps: ({ authorId, sort }: ChirpQuery = {}) => {
+    const params = new URLSearchParams()
+    if (authorId) params.set('author_id', authorId)
+    if (sort) params.set('sort', sort)
+    const query = params.toString()
+    // The Go handler encodes a nil slice as `null` when there are no chirps, so normalise to [].
+    return request<Chirp[] | null>(`/api/chirps${query ? `?${query}` : ''}`).then((items) => items ?? [])
+  },
   register: (email: string, password: string) => request<User>('/api/users', { method: 'POST', body: JSON.stringify({ email, password }) }),
   login: (email: string, password: string) => request<AuthResponse>('/api/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   createChirp: (body: string) => request<Chirp>('/api/chirps', { method: 'POST', body: JSON.stringify({ body }) }, true),

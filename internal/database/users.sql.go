@@ -12,15 +12,16 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, created_at, updated_at, email, hashed_password)
+INSERT INTO users (id, created_at, updated_at, email, hashed_password, is_chirpy_red)
 VALUES (
     gen_random_uuid(),
     NOW(),
     NOW(),
     $1, 
-    $2
+    $2, 
+    FALSE
 )
-RETURNING id, created_at, updated_at, email, hashed_password
+RETURNING id, created_at, updated_at, email, hashed_password, is_chirpy_red
 `
 
 type CreateUserParams struct {
@@ -37,6 +38,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.Email,
 		&i.HashedPassword,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }
@@ -50,8 +52,21 @@ func (q *Queries) DeleteAll(ctx context.Context) error {
 	return err
 }
 
+const existsByUserId = `-- name: ExistsByUserId :one
+select exists (
+    select 1 from users where id = $1
+)
+`
+
+func (q *Queries) ExistsByUserId(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRowContext(ctx, existsByUserId, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const findUser = `-- name: FindUser :one
-select id, created_at, updated_at, email, hashed_password from users where id = $1 limit 1
+select id, created_at, updated_at, email, hashed_password, is_chirpy_red from users where id = $1 limit 1
 `
 
 func (q *Queries) FindUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -63,12 +78,13 @@ func (q *Queries) FindUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.UpdatedAt,
 		&i.Email,
 		&i.HashedPassword,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }
 
 const findUserByEmail = `-- name: FindUserByEmail :one
-select id, created_at, updated_at, email, hashed_password from users where email = $1 limit 1
+select id, created_at, updated_at, email, hashed_password, is_chirpy_red from users where email = $1 limit 1
 `
 
 func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, error) {
@@ -80,8 +96,23 @@ func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, erro
 		&i.UpdatedAt,
 		&i.Email,
 		&i.HashedPassword,
+		&i.IsChirpyRed,
 	)
 	return i, err
+}
+
+const updateChripStatus = `-- name: UpdateChripStatus :exec
+update users set is_chirpy_red = $1 where id = $2
+`
+
+type UpdateChripStatusParams struct {
+	IsChirpyRed bool
+	ID          uuid.UUID
+}
+
+func (q *Queries) UpdateChripStatus(ctx context.Context, arg UpdateChripStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateChripStatus, arg.IsChirpyRed, arg.ID)
+	return err
 }
 
 const updateUser = `-- name: UpdateUser :exec

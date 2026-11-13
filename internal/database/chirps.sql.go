@@ -62,11 +62,93 @@ func (q *Queries) ExistsByChirpId(ctx context.Context, id uuid.UUID) (bool, erro
 }
 
 const getAllChirps = `-- name: GetAllChirps :many
-select id, created_at, updated_at, body, user_id from chirps order by created_at
+select id, created_at, updated_at, body, user_id from chirps order by
+    case when $1::text = 'desc' then created_at end DESC,
+    created_at asc
 `
 
-func (q *Queries) GetAllChirps(ctx context.Context) ([]Chirp, error) {
-	rows, err := q.db.QueryContext(ctx, getAllChirps)
+func (q *Queries) GetAllChirps(ctx context.Context, sortType string) ([]Chirp, error) {
+	rows, err := q.db.QueryContext(ctx, getAllChirps, sortType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Chirp
+	for rows.Next() {
+		var i Chirp
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Body,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getChirpBySortUserId = `-- name: GetChirpBySortUserId :many
+
+
+select id, created_at, updated_at, body, user_id from chirps where user_id = $1 order by 
+    case when $2::text = 'asc' then created_at end asc,
+    case when $2::text = 'desc' then created_at end DESC,
+    created_at asc
+`
+
+type GetChirpBySortUserIdParams struct {
+	UserID   uuid.UUID
+	SortType string
+}
+
+// -- name: GetChirpsByUserIdAsc :many
+// select * from chirps where user_id = $1 order by user_id ASC;
+// -- name: GetChirpsByUserIdDesc :many
+// select * from chirps where user_id = $1 order by user_id DESC
+func (q *Queries) GetChirpBySortUserId(ctx context.Context, arg GetChirpBySortUserIdParams) ([]Chirp, error) {
+	rows, err := q.db.QueryContext(ctx, getChirpBySortUserId, arg.UserID, arg.SortType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Chirp
+	for rows.Next() {
+		var i Chirp
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Body,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getChirpByUserId = `-- name: GetChirpByUserId :many
+select id, created_at, updated_at, body, user_id from chirps where user_id = $1
+`
+
+func (q *Queries) GetChirpByUserId(ctx context.Context, userID uuid.UUID) ([]Chirp, error) {
+	rows, err := q.db.QueryContext(ctx, getChirpByUserId, userID)
 	if err != nil {
 		return nil, err
 	}

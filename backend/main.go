@@ -20,6 +20,7 @@ func main() {
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
 	secretKey := os.Getenv("SECRET_KEY")
+	polka_key := os.Getenv("POLKA_KEY")
 	if dbURL == "" {
 		log.Fatal("DB_URL is not set")
 	}
@@ -34,7 +35,7 @@ func main() {
 	defer db.Close()
 
 	dbQueries := database.New(db)
-	apiCfg := &apiConfig{db: dbQueries, platform: platform, secretKey: secretKey}
+	apiCfg := &apiConfig{db: dbQueries, platform: platform, secretKey: secretKey, PolkaKey: polka_key}
 
 	server := http.Server{
 		Addr:    ":8080",

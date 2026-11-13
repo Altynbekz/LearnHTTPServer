@@ -27,6 +27,7 @@ type userResponse struct {
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 	Email        string    `json:"email"`
+	IsChirpyRed  bool      `json:"is_chirpy_red"`
 	Token        string    `json:"token,omitempty"`
 	RefreshToken string    `json:"refresh_token"`
 }
@@ -68,10 +69,11 @@ func (cfg *apiConfig) dbHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := userResponse{
-		ID:        uuid.UUID(create.ID),
-		CreatedAt: create.CreatedAt,
-		UpdatedAt: create.UpdatedAt,
-		Email:     create.Email,
+		ID:          uuid.UUID(create.ID),
+		CreatedAt:   create.CreatedAt,
+		UpdatedAt:   create.UpdatedAt,
+		Email:       create.Email,
+		IsChirpyRed: create.IsChirpyRed,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -135,6 +137,7 @@ func (cfg *apiConfig) UserLoginHandler(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:    getUser.CreatedAt,
 		UpdatedAt:    getUser.UpdatedAt,
 		Email:        getUser.Email,
+		IsChirpyRed:  getUser.IsChirpyRed,
 		Token:        token,
 		RefreshToken: refreshToken,
 	}

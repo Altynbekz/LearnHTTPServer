@@ -99,5 +99,8 @@ func newMuxWithConfig(apiCfg *apiConfig) *http.ServeMux {
 	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.DeleteChirpHandler)
 	log.Println("The delete endpoint has been created")
 
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.webhookHandler)
+	log.Println("The webhook endpoint has been created")
+
 	return mux
 }

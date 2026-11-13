@@ -13,6 +13,7 @@ type apiConfig struct {
 	db             *database.Queries
 	platform       string
 	secretKey      string
+	PolkaKey       string
 }
 
 func (cfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,21 @@
 -- name: GetChirps :one
 select * from chirps where id = $1 limit 1;
 
+-- name: GetChirpByUserId :many
+select * from chirps where user_id = $1;
+
+-- -- name: GetChirpsByUserIdAsc :many
+-- select * from chirps where user_id = $1 order by user_id ASC;
+
+-- -- name: GetChirpsByUserIdDesc :many
+-- select * from chirps where user_id = $1 order by user_id DESC
+
+-- name: GetChirpBySortUserId :many
+select * from chirps where user_id = $1 order by 
+    case when @sort_type::text = 'asc' then created_at end asc,
+    case when @sort_type::text = 'desc' then created_at end DESC,
+    created_at asc;
+
 -- name: ExistsByChirpId :one
 select exists (select 1 from chirps where id = $1);
 
@@ -15,10 +30,10 @@ values(
 )
 returning *;
 
-
-
 -- name: GetAllChirps :many
-select * from chirps order by created_at;
+select * from chirps order by
+    case when @sort_type::text = 'desc' then created_at end DESC,
+    created_at asc;
 
 
 -- name: DeleteChirp :exec

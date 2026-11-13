@@ -4,7 +4,8 @@ create table users(
     created_at timestamp not null,
     updated_at timestamp not null,
     email text not null,
-    hashed_password text not null
+    hashed_password text not null,
+    is_chirpy_red BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 

@@ -104,11 +104,40 @@ func cleanBody(word string) string {
 
 // func to return all the chirps
 func (cfg *apiConfig) getAllChirpsHandler(w http.ResponseWriter, r *http.Request) {
-	items, err := cfg.db.GetAllChirps(r.Context())
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "sorry internal erro occured try again later")
-		return
+	id := r.URL.Query().Get("author_id")
+	sortType := r.URL.Query().Get("sort")
+
+	var items []database.Chirp
+	if id == "" {
+		allChirps, err := cfg.db.GetAllChirps(r.Context(), sortType)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				respondWithError(w, 400, "No chirps found")
+				return
+			}
+			respondWithError(w, 500, "Error occured in the server")
+			return
+		}
+		items = allChirps
+	} else {
+		id, err := uuid.Parse(id)
+		if err != nil {
+			respondWithError(w, 500, "Couldn't parse the id")
+			return
+		}
+		params := database.GetChirpBySortUserIdParams{UserID: id, SortType: sortType}
+		oneChirp, err := cfg.db.GetChirpBySortUserId(r.Context(), params)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				respondWithError(w, 400, "No chirp was found")
+				return
+			}
+			respondWithError(w, 500, "Internal error occured")
+			return
+		}
+		items = oneChirp
 	}
+
 	var AllChirps []chirpyResponse
 
 	for _, chirp := range items {
